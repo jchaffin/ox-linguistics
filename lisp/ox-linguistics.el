@@ -15,28 +15,29 @@
 
 ;;;; You should have received a copy of the GNU General Public License
 ;;;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
-
+(require 'ox)
 (require 'ox-latex)
 
 (org-export-define-derived-backend
  'linguistics
  'latex
  :menu-entry
- '(?d "Export to Linguistics LaTeX"
+ '(?L "Export to Linguistics LaTeX"
       ((?L "As LaTeX buffer" org-linguistics-export-as-latex)
        (?l "As LaTeX file" org-linguistics-export-to-latex)
        (?p "As PDF file" org-linguistics-export-to-pdf)
        (?o "As PDF file and open"
-	   (lambda (a s v b)
-	     (if a (org-latex-export-to-pdf t s v b)
-	       (org-open-file (org-latex-export-to-pdf nil s v b)))))))
-  :translate-alist '((plain-list . org-linguistics-plain-list)
-		     (item . org-linguistics-item)
-		     (paragraph . org-linguistics-paragraph)))
+	         (lambda (a s v b)
+	     (if a (org-linguistics-export-to-pdf t s v b)
+	       (org-open-file (org-linguistics-export-to-pdf nil s v b)))))))
+ :translate-alist
+ '((plain-list . org-linguistics-plain-list)
+	 (item . org-linguistics-item)
+	 (paragraph . org-linguistics-paragraph)))
 
 ;;
 ;; General-purpose helpers
-;; 
+;;
 (defun org-linguistics-find-enclosing-pkg (element)
   "Find the enclosing linguistics package of a (list) element during export."
   (let ((pkg (org-export-read-attribute :attr_linguistics element
@@ -71,7 +72,7 @@ comparison succeeds if it evaluates to non-nil."
 
 ;;
 ;; Paragraphs
-;; 
+;;
 (defvar org-linguistics-judgment-regexp
   "^[[:space:]]*\\([*?%#\\\\]+\\)[[:space:]]+"
   ; judgments are: sequences of the characters '*', '?', '%', '#' and '\',
@@ -136,7 +137,7 @@ the appropriate package-specific paragraph transcoding function."
 	     (judgment (when judgment-match (match-string 1 contents-no-label)))
 	     (proper-contents (substring contents-no-label
 					 (if judgment-match (match-end 0) 0))))
-	;; keep extracted values as properties, to be manipulated 
+	;; keep extracted values as properties, to be manipulated
 	;; elsewhere if required
 	(org-element-put-property paragraph :judgment judgment)
 	(org-element-put-property paragraph :label label)
@@ -149,7 +150,7 @@ the appropriate package-specific paragraph transcoding function."
 	  ; of (if (not transcodep) ...) unless the enclosing env is a
 	  ; recognized package
 	  (error "Cannot transcode paragraph in unrecognized environment")))))))
-  
+
 (defun org-linguistics-gb4e-paragraph (paragraph contents info)
   "Transcode paragraph in a gb4e list item.
 
@@ -171,7 +172,7 @@ handling label placement and inserting curly braces as necessary."
   "Transcode paragraph in linguex list item.
 
 This function properly formats linguex example text and labels,
-handling judgment and label placement." 
+handling judgment and label placement."
   (let ((judgment (org-element-property :judgment paragraph))
 	(label (org-element-property :label paragraph))
 	(proper-contents (org-element-property :proper-contents paragraph)))
@@ -185,7 +186,7 @@ handling judgment and label placement."
 
 ;;
 ;; Plain lists
-;; 
+;;
 (defun org-linguistics-plain-list (plain-list contents info)
   "Transcode a PLAIN-LIST element from Org to Linguistics LaTeX.
 CONTENTS is the contents of the list.  INFO is a plist holding
@@ -234,7 +235,7 @@ will give:
 	 (pkg (org-export-read-attribute :attr_linguistics plain-list :package))
          ; the distinction between toplevel and sublevel lists is handled at the
          ; item level for linguex, but must be handled here for gb4e, since gb4e
-	 ; separates list commands from item commands, while linguex doesn't 
+	 ; separates list commands from item commands, while linguex doesn't
 	 (gb4e-toplevel (string= pkg "gb4e"))
 	 (declared-env
 	  (org-export-read-attribute :attr_linguistics plain-list :environment))
@@ -254,7 +255,7 @@ LIST-TYPE indicates environment type: e.g., 'exe' or 'xlist'"
 	   (org-element-contents plain-list))))
     (setq contents
      ;; replace empty judgment placeholder with appropriate string, depending
-     ;; on whether any items in the list have judgments 
+     ;; on whether any items in the list have judgments
      (with-temp-buffer
        (insert contents)
        (goto-char (point-min))
@@ -282,7 +283,7 @@ LIST-TYPE indicates environment type: e.g., 'exe' or 'xlist'"
 
 ;;
 ;; List items
-;; 
+;;
 (defvar org-linguistics-empty-judgment-placeholder "%%EMPTY-JUDGMENT%%")
 
 (defun org-linguistics-item (item contents info)
@@ -293,7 +294,7 @@ contextual information."
 	 (pkg (org-export-read-attribute :attr_linguistics parent-list :package))
 	 (enclosing-pkg (org-linguistics-find-enclosing-pkg item))
 	 (linguex-toplevel (string= pkg "linguex")))
-    (package-case enclosing-pkg 
+    (package-case enclosing-pkg
       ("gb4e" (org-linguistics-gb4e-item item contents info))
       ("linguex" (org-linguistics-linguex-item item contents info linguex-toplevel))
       (t (org-latex-item item contents info)))))
@@ -302,7 +303,7 @@ contextual information."
   "Transcode an ITEM element from Org to a gb4e \\ex command"
   (flet ((get-par-child
 	  (el)
-	  (car ; assumes only one child is a paragraph (this is safe for items) 
+	  (car ; assumes only one child is a paragraph (this is safe for items)
 	   (remove-if-not
 	    (lambda (c) (eq 'paragraph (org-element-type c)))
 	    (org-element-contents el)))))
@@ -337,7 +338,7 @@ Otherwise, it will transcoded as \\a. or \\b. as appropriate."
 		   (toplevel "\\par\n")
 		   ((org-export-last-sibling-p item info) "\\z.\n")
 		   (t "\n"))))
-    ; alignment of judgment, etc. handled by org-linguistics-linguex-paragraph 
+    ; alignment of judgment, etc. handled by org-linguistics-linguex-paragraph
     (concat start-cmd tag-cmd contents end-cmd)))
 
 ;; Export UI
@@ -452,5 +453,6 @@ Return PDF file's name."
     (org-export-to-file 'linguistics outfile
       async subtreep visible-only body-only ext-plist
       (lambda (file) (org-latex-compile file)))))
+
 
 (provide 'ox-linguistics)
